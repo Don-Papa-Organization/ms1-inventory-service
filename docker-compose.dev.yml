@@ -1,0 +1,27 @@
+services:
+  inventory-service-app:  # ✅ Mismo nombre que en principal
+    build: ./SistemaDeInventario
+    environment:
+      - DATABASE_SERVICE_URL=http://inventory-service-db:3001
+    ports:
+      - "4001:4001"
+    networks:
+      - dev-network
+
+  inventory-mysql:  # ✅ Nombre único
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME_INVENTORY}
+    networks:
+      - dev-network
+
+  inventory-service-db:  # ✅ Mismo nombre que en principal
+    build: ./Database
+    environment:
+      - DB_HOST=inventory-mysql  # ✅ Nombre actualizado
+      - PORT=3001
+    ports:
+      - "3001:3001"
+    networks:
+      - dev-network
