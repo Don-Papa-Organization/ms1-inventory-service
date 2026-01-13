@@ -31,13 +31,15 @@ export class Producto extends Model {
 
     @Column({
         type: DataType.INTEGER,
-        allowNull: false
+        allowNull: false,
+        defaultValue: 1
     })
     stockActual!: number;
 
     @Column({
         type: DataType.INTEGER,
-        allowNull: false
+        allowNull: false,
+        defaultValue: 0
     })
     stockMinimo!: number;
 

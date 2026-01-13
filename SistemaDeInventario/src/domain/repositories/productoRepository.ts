@@ -1,5 +1,5 @@
 import { BaseRepository } from "./baseRepository";
-import { Producto } from "../models";
+import { Producto } from "../models/producto";
 
 export class ProductoRepository extends BaseRepository<Producto> {
     constructor() {

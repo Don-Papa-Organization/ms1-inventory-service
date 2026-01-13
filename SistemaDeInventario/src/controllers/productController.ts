@@ -1,115 +1,264 @@
 import { Request, Response } from "express";
-import { ProductRepository } from "../repositories/productRepository";
-import { TipoUsuario } from "../types/express";
+import { productService } from "../services/productService";
 
-const productRepository = new ProductRepository();
-
-// Obtener todos los productos
+/**
+ * Obtener catálogo de productos para empleados con filtros
+ * CU36 - Visualizar catálogo desde módulo de ventas
+ * Permite a empleados ver todos los productos con filtros avanzados
+ */
 export const getProductos = async (req: Request, res: Response): Promise<any> => {
     try {
-        // Validar usuario activo y tipo
-        if (!req.user) {
-            return res.status(401).json({ message: "No autenticado" });
+        // Parsear query params
+        const {
+            nombre,
+            categoria,
+            activo,
+            esPromocion,
+            precioMin,
+            precioMax,
+            page,
+            limit,
+            ordenarPor,
+            orden
+        } = req.query;
+
+        // Construir filtros
+        const filters: any = {};
+
+        if (nombre) {
+            filters.nombre = nombre as string;
         }
-        if (!req.user.activo) {
-            return res.status(403).json({ message: "Usuario no activo" });
+
+        if (categoria) {
+            const categoriaNum = parseInt(categoria as string, 10);
+            if (!isNaN(categoriaNum)) {
+                filters.categoria = categoriaNum;
+            }
         }
-        if (req.user.tipoUsuario === TipoUsuario.cliente) {
-            return res.status(403).json({ message: "El usuario debe ser admin o empleado" });
+
+        if (activo !== undefined) {
+            filters.activo = activo === 'true' || activo === '1';
         }
-        const productos = await productRepository.findAll();
-        res.json(productos);
-    } catch (error) {
-        res.status(500).json({ message: "Error al obtener productos", error });
+
+        if (esPromocion !== undefined) {
+            filters.esPromocion = esPromocion === 'true' || esPromocion === '1';
+        }
+
+        if (precioMin) {
+            const precioMinNum = parseFloat(precioMin as string);
+            if (!isNaN(precioMinNum) && precioMinNum >= 0) {
+                filters.precioMin = precioMinNum;
+            }
+        }
+
+        if (precioMax) {
+            const precioMaxNum = parseFloat(precioMax as string);
+            if (!isNaN(precioMaxNum) && precioMaxNum >= 0) {
+                filters.precioMax = precioMaxNum;
+            }
+        }
+
+        if (page) {
+            const pageNum = parseInt(page as string, 10);
+            if (!isNaN(pageNum) && pageNum > 0) {
+                filters.page = pageNum;
+            }
+        }
+
+        if (limit) {
+            const limitNum = parseInt(limit as string, 10);
+            if (!isNaN(limitNum) && limitNum > 0) {
+                filters.limit = limitNum;
+            }
+        }
+
+        if (ordenarPor && ['nombre', 'precio', 'reciente', 'stock'].includes(ordenarPor as string)) {
+            filters.ordenarPor = ordenarPor as 'nombre' | 'precio' | 'reciente' | 'stock';
+        }
+
+        if (orden && ['asc', 'desc'].includes(orden as string)) {
+            filters.orden = orden as 'asc' | 'desc';
+        }
+
+        const result = await productService.getCatalogoEmpleado(filters);
+        return res.status(result.status).json(result.data ?? { message: result.message });
+    } catch (error: any) {
+        console.error("Error al obtener catálogo de productos:", error.message);
+        return res.status(500).json({ 
+            message: "Error interno del servidor al recuperar los datos del catálogo." 
+        });
     }
 };
 
-// Obtener un producto por ID
+/**
+ * Obtener un producto por ID
+ */
 export const getProductoById = async (req: Request, res: Response): Promise<any> => {
     try {
-        if (!req.user) {
-            return res.status(401).json({ message: "No autenticado" });
+        const { id } = req.params;
+
+        if (!id || isNaN(parseInt(id, 10))) {
+            return res.status(400).json({ message: "id inválido o no proporcionado." });
         }
-        if (!req.user.activo) {
-            return res.status(403).json({ message: "Usuario no activo" });
-        }
-        if (req.user.tipoUsuario === TipoUsuario.cliente) {
-            return res.status(403).json({ message: "El usuario debe ser admin o empleado" });
-        }
-        const producto = await productRepository.findById(parseInt(req.params.id));
-        if (!producto) {
-            return res.status(404).json({ message: "Producto no encontrado" });
-        }
-        res.json(producto);
-    } catch (error) {
-        res.status(500).json({ message: "Error al obtener el producto", error });
+
+        const result = await productService.getById(parseInt(id, 10));
+        return res.status(result.status).json(result.data ?? { message: result.message });
+    } catch (error: any) {
+        console.error("Error al obtener producto:", error.message);
+        return res.status(500).json({ message: "Error interno al obtener el producto." });
     }
 };
 
-// Crear un nuevo producto
+/**
+ * Crear un nuevo producto
+ */
 export const createProducto = async (req: Request, res: Response): Promise<any> => {
     try {
-        if (!req.user) {
-            return res.status(401).json({ message: "No autenticado" });
-        }
-        if (!req.user.activo) {
-            return res.status(403).json({ message: "Usuario no activo" });
-        }
-        if (req.user.tipoUsuario !== TipoUsuario.administrador) {
-            return res.status(403).json({ message: "Solo administradores pueden crear productos" });
-        }
-        const productoGuardado = await productRepository.create(req.body);
-        res.status(201).json(productoGuardado);
-    } catch (error) {
-        res.status(400).json({ message: "Error al crear el producto", error });
+        const result = await productService.create(req.body);
+        return res.status(result.status).json(result.data ?? { message: result.message });
+    } catch (error: any) {
+        console.error("Error al crear producto:", error.message);
+        return res.status(500).json({ message: "Error interno al crear el producto." });
     }
 };
 
-// Actualizar un producto existente
+/**
+ * Actualizar un producto existente
+ */
 export const updateProducto = async (req: Request, res: Response): Promise<any> => {
     try {
-        if (!req.user) {
-            return res.status(401).json({ message: "No autenticado" });
+        const { id } = req.params;
+
+        if (!id || isNaN(parseInt(id, 10))) {
+            return res.status(400).json({ message: "id inválido o no proporcionado." });
         }
-        if (!req.user.activo) {
-            return res.status(403).json({ message: "Usuario no activo" });
-        }
-        if (req.user.tipoUsuario !== TipoUsuario.administrador) {
-            return res.status(403).json({ message: "Solo administradores pueden modificar productos" });
-        }
-        const producto = await productRepository.findById(parseInt(req.params.id));
-        if (!producto) {
-            return res.status(404).json({ message: "Producto no encontrado" });
-        }
-        const productoActualizado = await productRepository.update(parseInt(req.params.id), req.body);
-        if (!productoActualizado) {
-            return res.status(404).json({ message: "No se pudo actualizar: producto no encontrado" });
-        }
-        res.json(productoActualizado);
-    } catch (error) {
-        res.status(400).json({ message: "Error al actualizar el producto", error });
+
+        const result = await productService.update(parseInt(id, 10), req.body);
+        return res.status(result.status).json(result.data ?? { message: result.message });
+    } catch (error: any) {
+        console.error("Error al actualizar producto:", error.message);
+        return res.status(500).json({ message: "Error interno al actualizar el producto." });
     }
 };
 
-// Eliminar un producto
+/**
+ * Eliminar un producto
+ */
 export const deleteProducto = async (req: Request, res: Response): Promise<any> => {
     try {
-        if (!req.user) {
-            return res.status(401).json({ message: "No autenticado" });
+        const { id } = req.params;
+
+        if (!id || isNaN(parseInt(id, 10))) {
+            return res.status(400).json({ message: "id inválido o no proporcionado." });
         }
-        if (!req.user.activo) {
-            return res.status(403).json({ message: "Usuario no activo" });
+
+        const result = await productService.delete(parseInt(id, 10));
+        return res.status(result.status).json(result.data ?? { message: result.message });
+    } catch (error: any) {
+        console.error("Error al eliminar producto:", error.message);
+        return res.status(500).json({ message: "Error interno al eliminar el producto." });
+    }
+};
+
+/**
+ * Obtener catálogo público de productos (sin autenticación)
+ * CU019 - Acceder al catálogo de productos
+ * Permite a cualquier usuario visualizar productos activos con filtros y paginación
+ */
+export const getCatalogoPublico = async (req: Request, res: Response): Promise<any> => {
+    try {
+        // Parsear query params
+        const {
+            categoria,
+            precioMin,
+            precioMax,
+            esPromocion,
+            page,
+            limit,
+            ordenarPor,
+            orden
+        } = req.query;
+
+        // Construir filtros
+        const filters: any = {};
+
+        if (categoria) {
+            const categoriaNum = parseInt(categoria as string, 10);
+            if (!isNaN(categoriaNum)) {
+                filters.categoria = categoriaNum;
+            }
         }
-        if (req.user.tipoUsuario !== TipoUsuario.administrador) {
-            return res.status(403).json({ message: "Solo administradores pueden eliminar productos" });
+
+        if (precioMin) {
+            const precioMinNum = parseFloat(precioMin as string);
+            if (!isNaN(precioMinNum) && precioMinNum >= 0) {
+                filters.precioMin = precioMinNum;
+            }
         }
-        const producto = await productRepository.findById(parseInt(req.params.id));
-        if (!producto) {
-            return res.status(404).json({ message: "Producto no encontrado" });
+
+        if (precioMax) {
+            const precioMaxNum = parseFloat(precioMax as string);
+            if (!isNaN(precioMaxNum) && precioMaxNum >= 0) {
+                filters.precioMax = precioMaxNum;
+            }
         }
-        await productRepository.delete(parseInt(req.params.id));
-        res.json({ message: "Producto eliminado correctamente" });
-    } catch (error) {
-        res.status(500).json({ message: "Error al eliminar el producto", error });
+
+        if (esPromocion !== undefined) {
+            filters.esPromocion = esPromocion === 'true' || esPromocion === '1';
+        }
+
+        if (page) {
+            const pageNum = parseInt(page as string, 10);
+            if (!isNaN(pageNum) && pageNum > 0) {
+                filters.page = pageNum;
+            }
+        }
+
+        if (limit) {
+            const limitNum = parseInt(limit as string, 10);
+            if (!isNaN(limitNum) && limitNum > 0) {
+                filters.limit = limitNum;
+            }
+        }
+
+        if (ordenarPor && ['nombre', 'precio', 'reciente'].includes(ordenarPor as string)) {
+            filters.ordenarPor = ordenarPor as 'nombre' | 'precio' | 'reciente';
+        }
+
+        if (orden && ['asc', 'desc'].includes(orden as string)) {
+            filters.orden = orden as 'asc' | 'desc';
+        }
+
+        const result = await productService.getCatalogo(filters);
+        return res.status(result.status).json(result.data ?? { message: result.message });
+    } catch (error: any) {
+        console.error("Error al obtener catálogo público:", error.message);
+        return res.status(500).json({ 
+            message: "Error al conectar con la base de datos. Por favor, inténtelo más tarde." 
+        });
+    }
+};
+
+/**
+ * Obtener detalles públicos de un producto específico (sin autenticación)
+ * CU021 - Ver detalles de producto
+ * Permite a cualquier usuario visualizar los detalles completos de un producto activo
+ */
+export const getDetalleProductoPublico = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const { id } = req.params;
+
+        // Validar que el ID sea válido
+        if (!id || isNaN(parseInt(id, 10))) {
+            return res.status(400).json({ message: "ID de producto inválido." });
+        }
+
+        const result = await productService.getDetallePublico(parseInt(id, 10));
+        return res.status(result.status).json(result.data ?? { message: result.message });
+    } catch (error: any) {
+        console.error("Error al obtener detalles del producto:", error.message);
+        return res.status(500).json({ 
+            message: "Error al conectar con la base de datos. Por favor, inténtelo más tarde." 
+        });
     }
 };

@@ -1,15 +1,16 @@
 import { Router } from "express";
 import { getProductos, getProductoById, createProducto, updateProducto, deleteProducto } from "../controllers/productController"
-import { authenticateToken } from "../middlewares/authMiddleware";
+import { authenticateToken, requireUsuarioActivo, requireRoles } from "../middlewares/authMiddleware";
+import { TipoUsuario } from "../types/express";
 
 const router = Router();
 
-router.use(authenticateToken)
+router.use(authenticateToken, requireUsuarioActivo);
 
-router.get("/", getProductos);
-router.get("/:id", getProductoById);
-router.post("/", createProducto);
-router.put("/:id", updateProducto);
-router.delete("/:id", deleteProducto);
+router.get("/", requireRoles(TipoUsuario.empleado, TipoUsuario.administrador), getProductos);
+router.get("/:id", requireRoles(TipoUsuario.empleado, TipoUsuario.administrador), getProductoById);
+router.post("/", requireRoles(TipoUsuario.administrador), createProducto);
+router.put("/:id", requireRoles(TipoUsuario.administrador), updateProducto);
+router.delete("/:id", requireRoles(TipoUsuario.administrador), deleteProducto);
 
 export default router;

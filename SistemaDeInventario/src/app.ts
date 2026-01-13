@@ -1,5 +1,7 @@
-import express, { Express, Request, Response, NextFunction} from "express";
+import express, { Express, Request, Response, NextFunction } from "express";
 import productRoutes from "./routes/productRoutes";
+import catalogoRoutes from "./routes/catalogoRoutes";
+import categoriaRoutes from "./routes/categoriaProductoRoutes";
 
 const app: Express = express();
 
@@ -18,6 +20,12 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// Rutas públicas del catálogo (sin autenticación)
+app.use("/api/catalogo", catalogoRoutes);
+
+// Rutas protegidas de productos (requieren autenticación)
 app.use("/api/products", productRoutes);
 
+// Rutas protegidas de categorías de productos (requieren autenticación)
+app.use("/api/categoria", categoriaRoutes)
 export default app;
