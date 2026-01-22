@@ -4,7 +4,6 @@ export interface ProductoDto {
     precio: number;
     stockActual: number;
     stockMinimo: number;
-    esPromocion: boolean;
     activo: boolean;
     descripcion?: string;
     urlImagen?: string;

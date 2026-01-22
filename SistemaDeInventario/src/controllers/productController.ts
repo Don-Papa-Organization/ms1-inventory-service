@@ -262,3 +262,32 @@ export const getDetalleProductoPublico = async (req: Request, res: Response): Pr
         });
     }
 };
+
+/**
+ * Actualizar stock de un producto
+ * Permite incrementar o decrementar el stock
+ */
+export const updateStock = async (req: Request, res: Response): Promise<any> => {
+    try {
+        const { id } = req.params;
+        const { cantidadCambio } = req.body;
+
+        // Validar ID
+        if (!id || isNaN(parseInt(id, 10))) {
+            return res.status(400).json({ message: "ID de producto inválido." });
+        }
+
+        // Validar cantidadCambio
+        if (cantidadCambio === undefined || cantidadCambio === null || isNaN(cantidadCambio)) {
+            return res.status(400).json({ 
+                message: "El campo 'cantidadCambio' es requerido y debe ser un número." 
+            });
+        }
+
+        const result = await productService.updateStock(parseInt(id, 10), cantidadCambio);
+        return res.status(result.status).json(result.data ?? { message: result.message });
+    } catch (error: any) {
+        console.error("Error al actualizar stock:", error.message);
+        return res.status(500).json({ message: "Error interno al actualizar el stock." });
+    }
+};

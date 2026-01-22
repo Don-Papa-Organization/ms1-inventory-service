@@ -14,7 +14,6 @@ class ProductService {
             precio: Number(producto.precio),
             stockActual: producto.stockActual,
             stockMinimo: producto.stockMinimo,
-            esPromocion: producto.esPromocion,
             activo: producto.activo,
             descripcion: producto.descripcion,
             urlImagen: producto.urlImagen,
@@ -23,7 +22,7 @@ class ProductService {
     }
 
     private validatePayload(data: Partial<ProductoDto>): string | null {
-        const required = ["nombre", "precio", "stockActual", "stockMinimo", "esPromocion", "activo"] as const;
+        const required = ["nombre", "precio", "stockActual", "stockMinimo", "activo"] as const;
         const missing = required.filter(key => data[key] === undefined || data[key] === null);
         if (missing.length) {
             return `Faltan campos obligatorios: ${missing.join(", ")}.`;
@@ -154,7 +153,6 @@ class ProductService {
         categoria?: number;
         precioMin?: number;
         precioMax?: number;
-        esPromocion?: boolean;
         page?: number;
         limit?: number;
         ordenarPor?: 'nombre' | 'precio' | 'reciente';
@@ -191,11 +189,6 @@ class ProductService {
             // Aplicar filtro por precio máximo
             if (filters.precioMax !== undefined && filters.precioMax >= 0) {
                 productos = productos.filter(p => Number(p.precio) <= filters.precioMax!);
-            }
-
-            // Aplicar filtro por promoción
-            if (filters.esPromocion !== undefined) {
-                productos = productos.filter(p => p.esPromocion === filters.esPromocion);
             }
 
             // Ordenar productos
@@ -298,7 +291,6 @@ class ProductService {
         nombre?: string;
         categoria?: number;
         activo?: boolean;
-        esPromocion?: boolean;
         precioMin?: number;
         precioMax?: number;
         page?: number;
@@ -340,11 +332,6 @@ class ProductService {
             // Aplicar filtro por estado (activo/inactivo)
             if (filters.activo !== undefined) {
                 productos = productos.filter(p => p.activo === filters.activo);
-            }
-
-            // Aplicar filtro por promoción
-            if (filters.esPromocion !== undefined) {
-                productos = productos.filter(p => p.esPromocion === filters.esPromocion);
             }
 
             // Aplicar filtro por precio mínimo
@@ -417,6 +404,51 @@ class ProductService {
                 status: 500, 
                 message: "Error interno del servidor al recuperar los datos del catálogo." 
             };
+        }
+    }
+
+    /**
+     * Actualizar stock de un producto
+     * @param id ID del producto
+     * @param cantidadCambio Cantidad a sumar o restar (positivo para incrementar, negativo para decrementar)
+     * @returns Producto actualizado
+     */
+    async updateStock(id: number, cantidadCambio: number): Promise<ServiceResponse<ProductoDto>> {
+        try {
+            // Validar que el producto existe
+            const producto = await this.productRepository.findById(id);
+            if (!producto) {
+                return { status: 404, message: "Producto no encontrado." };
+            }
+
+            // Calcular nuevo stock
+            const nuevoStock = producto.stockActual + cantidadCambio;
+
+            // Validar que el stock no sea negativo
+            if (nuevoStock < 0) {
+                return { 
+                    status: 400, 
+                    message: `Stock insuficiente. Stock actual: ${producto.stockActual}, cantidad solicitada: ${Math.abs(cantidadCambio)}` 
+                };
+            }
+
+            // Actualizar stock
+            const actualizado = await this.productRepository.update(id, { 
+                stockActual: nuevoStock 
+            } as any);
+
+            if (!actualizado) {
+                return { status: 500, message: "Error al actualizar el stock." };
+            }
+
+            return { 
+                status: 200, 
+                data: this.toDto(actualizado),
+                message: `Stock actualizado correctamente. Nuevo stock: ${nuevoStock}`
+            };
+        } catch (error: any) {
+            console.error("Error al actualizar stock del producto:", error.message);
+            return { status: 500, message: "Error interno al actualizar el stock del producto." };
         }
     }
 }

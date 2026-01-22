@@ -47,12 +47,6 @@ export class Producto extends Model {
         type: DataType.BOOLEAN,
         allowNull: false
     })
-    esPromocion!: boolean;
-
-    @Column({
-        type: DataType.BOOLEAN,
-        allowNull: false
-    })
     activo!: boolean;
 
     @Column({
@@ -79,7 +73,6 @@ export class Producto extends Model {
   "precio": "45.99",
   "stockActual": 50,
   "stockMinimo": 5,
-  "esPromocion": true,
   "activo": true,
   "descripcion": "Descripción de ejemplo",
   "urlImagen": "https://picsum.photos/200?random=123",
