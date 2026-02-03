@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { verifyAccessToken } from "../utils/jwtUtil";
 import { TipoUsuario } from "../types/express";
+import { AppError } from "./error.middleware";
 
 function extractToken(req: Request): string | null {
   const cookieHeader = req.headers.cookie;
@@ -21,40 +22,40 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
   try {
     const token = extractToken(req);
     if (!token) {
-      return res.status(401).json({ message: "No se proporcionó access token" });
+      throw new AppError("No se proporcionó access token", 401);
     }
 
     const payload = verifyAccessToken(token);
     if (!payload) {
-      return res.status(401).json({ message: "Token inválido o expirado" });
+      throw new AppError("Token inválido o expirado", 401);
     }
 
     req.user = payload;
     return next();
   } catch (error) {
-    return res.status(500).json({ message: "Error interno de autenticación" });
+    next(error);
   }
 };
 
 export const requireUsuarioActivo = (req: Request, res: Response, next: NextFunction) => {
   if (!req.user) {
-    return res.status(401).json({ message: "No autenticado" });
+    return next(new AppError("No autenticado", 401));
   }
   if (!req.user.activo) {
-    return res.status(403).json({ message: "Usuario no activo" });
+    return next(new AppError("Usuario no activo", 403));
   }
   return next();
 };
 
 export const requireRoles = (...rolesPermitidos: TipoUsuario[]) => (req: Request, res: Response, next: NextFunction) => {
   if (!req.user) {
-    return res.status(401).json({ message: "No autenticado" });
+    return next(new AppError("No autenticado", 401));
   }
   if (!req.user.activo) {
-    return res.status(403).json({ message: "Usuario no activo" });
+    return next(new AppError("Usuario no activo", 403));
   }
   if (!rolesPermitidos.includes(req.user.tipoUsuario)) {
-    return res.status(403).json({ message: "No tiene permisos para esta operación" });
+    return next(new AppError("No tiene permisos para esta operación", 403));
   }
   return next();
 };

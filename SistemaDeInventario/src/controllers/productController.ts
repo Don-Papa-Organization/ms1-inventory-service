@@ -1,12 +1,13 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { productService } from "../services/productService";
+import { ApiResponse } from "../types";
 
 /**
  * Obtener catálogo de productos para empleados con filtros
  * CU36 - Visualizar catálogo desde módulo de ventas
  * Permite a empleados ver todos los productos con filtros avanzados
  */
-export const getProductos = async (req: Request, res: Response): Promise<any> => {
+export const getProductos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         // Parsear query params
         const {
@@ -80,83 +81,116 @@ export const getProductos = async (req: Request, res: Response): Promise<any> =>
             filters.orden = orden as 'asc' | 'desc';
         }
 
-        const result = await productService.getCatalogoEmpleado(filters);
-        return res.status(result.status).json(result.data ?? { message: result.message });
+        const data = await productService.getCatalogoEmpleado(filters);
+        
+        const response: ApiResponse = {
+            success: true,
+            data,
+            message: 'Catálogo de productos obtenido exitosamente',
+            timestamp: new Date().toISOString()
+        };
+        
+        res.status(200).json(response);
     } catch (error: any) {
-        console.error("Error al obtener catálogo de productos:", error.message);
-        return res.status(500).json({ 
-            message: "Error interno del servidor al recuperar los datos del catálogo." 
-        });
+        next(error);
     }
 };
 
 /**
  * Obtener un producto por ID
  */
-export const getProductoById = async (req: Request, res: Response): Promise<any> => {
+export const getProductoById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { id } = req.params;
 
         if (!id || isNaN(parseInt(id, 10))) {
-            return res.status(400).json({ message: "id inválido o no proporcionado." });
+            return next(new Error("ID de producto inválido o no proporcionado."));
         }
 
-        const result = await productService.getById(parseInt(id, 10));
-        return res.status(result.status).json(result.data ?? { message: result.message });
+        const data = await productService.getById(parseInt(id, 10));
+        
+        const response: ApiResponse = {
+            success: true,
+            data,
+            message: 'Producto obtenido exitosamente',
+            timestamp: new Date().toISOString()
+        };
+        
+        res.status(200).json(response);
     } catch (error: any) {
-        console.error("Error al obtener producto:", error.message);
-        return res.status(500).json({ message: "Error interno al obtener el producto." });
+        next(error);
     }
 };
 
 /**
  * Crear un nuevo producto
  */
-export const createProducto = async (req: Request, res: Response): Promise<any> => {
+export const createProducto = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const result = await productService.create(req.body);
-        return res.status(result.status).json(result.data ?? { message: result.message });
+        const data = await productService.create(req.body);
+        
+        const response: ApiResponse = {
+            success: true,
+            data,
+            message: 'Producto creado exitosamente',
+            timestamp: new Date().toISOString()
+        };
+        
+        res.status(201).json(response);
     } catch (error: any) {
-        console.error("Error al crear producto:", error.message);
-        return res.status(500).json({ message: "Error interno al crear el producto." });
+        next(error);
     }
 };
 
 /**
  * Actualizar un producto existente
  */
-export const updateProducto = async (req: Request, res: Response): Promise<any> => {
+export const updateProducto = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { id } = req.params;
 
         if (!id || isNaN(parseInt(id, 10))) {
-            return res.status(400).json({ message: "id inválido o no proporcionado." });
+            return next(new Error("ID de producto inválido o no proporcionado."));
         }
 
-        const result = await productService.update(parseInt(id, 10), req.body);
-        return res.status(result.status).json(result.data ?? { message: result.message });
+        const data = await productService.update(parseInt(id, 10), req.body);
+        
+        const response: ApiResponse = {
+            success: true,
+            data,
+            message: 'Producto actualizado exitosamente',
+            timestamp: new Date().toISOString()
+        };
+        
+        res.status(200).json(response);
     } catch (error: any) {
-        console.error("Error al actualizar producto:", error.message);
-        return res.status(500).json({ message: "Error interno al actualizar el producto." });
+        next(error);
     }
 };
 
 /**
  * Eliminar un producto
  */
-export const deleteProducto = async (req: Request, res: Response): Promise<any> => {
+export const deleteProducto = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { id } = req.params;
 
         if (!id || isNaN(parseInt(id, 10))) {
-            return res.status(400).json({ message: "id inválido o no proporcionado." });
+            return next(new Error("ID de producto inválido o no proporcionado."));
         }
 
-        const result = await productService.delete(parseInt(id, 10));
-        return res.status(result.status).json(result.data ?? { message: result.message });
+        await productService.delete(parseInt(id, 10));
+        
+        const response: ApiResponse = {
+            success: true,
+            data: null,
+            message: 'Producto eliminado correctamente',
+            timestamp: new Date().toISOString()
+        };
+        
+        res.status(200).json(response);
     } catch (error: any) {
-        console.error("Error al eliminar producto:", error.message);
-        return res.status(500).json({ message: "Error interno al eliminar el producto." });
+        next(error);
     }
 };
 
@@ -165,7 +199,7 @@ export const deleteProducto = async (req: Request, res: Response): Promise<any> 
  * CU019 - Acceder al catálogo de productos
  * Permite a cualquier usuario visualizar productos activos con filtros y paginación
  */
-export const getCatalogoPublico = async (req: Request, res: Response): Promise<any> => {
+export const getCatalogoPublico = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         // Parsear query params
         const {
@@ -229,13 +263,18 @@ export const getCatalogoPublico = async (req: Request, res: Response): Promise<a
             filters.orden = orden as 'asc' | 'desc';
         }
 
-        const result = await productService.getCatalogo(filters);
-        return res.status(result.status).json(result.data ?? { message: result.message });
+        const data = await productService.getCatalogo(filters);
+        
+        const response: ApiResponse = {
+            success: true,
+            data,
+            message: data.productos.length > 0 ? 'Catálogo obtenido exitosamente' : 'No hay productos disponibles actualmente',
+            timestamp: new Date().toISOString()
+        };
+        
+        res.status(200).json(response);
     } catch (error: any) {
-        console.error("Error al obtener catálogo público:", error.message);
-        return res.status(500).json({ 
-            message: "Error al conectar con la base de datos. Por favor, inténtelo más tarde." 
-        });
+        next(error);
     }
 };
 
@@ -244,22 +283,27 @@ export const getCatalogoPublico = async (req: Request, res: Response): Promise<a
  * CU021 - Ver detalles de producto
  * Permite a cualquier usuario visualizar los detalles completos de un producto activo
  */
-export const getDetalleProductoPublico = async (req: Request, res: Response): Promise<any> => {
+export const getDetalleProductoPublico = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { id } = req.params;
 
         // Validar que el ID sea válido
         if (!id || isNaN(parseInt(id, 10))) {
-            return res.status(400).json({ message: "ID de producto inválido." });
+            return next(new Error("ID de producto inválido."));
         }
 
-        const result = await productService.getDetallePublico(parseInt(id, 10));
-        return res.status(result.status).json(result.data ?? { message: result.message });
+        const data = await productService.getDetallePublico(parseInt(id, 10));
+        
+        const response: ApiResponse = {
+            success: true,
+            data,
+            message: 'Detalles del producto obtenidos exitosamente',
+            timestamp: new Date().toISOString()
+        };
+        
+        res.status(200).json(response);
     } catch (error: any) {
-        console.error("Error al obtener detalles del producto:", error.message);
-        return res.status(500).json({ 
-            message: "Error al conectar con la base de datos. Por favor, inténtelo más tarde." 
-        });
+        next(error);
     }
 };
 
@@ -267,27 +311,32 @@ export const getDetalleProductoPublico = async (req: Request, res: Response): Pr
  * Actualizar stock de un producto
  * Permite incrementar o decrementar el stock
  */
-export const updateStock = async (req: Request, res: Response): Promise<any> => {
+export const updateStock = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { id } = req.params;
         const { cantidadCambio } = req.body;
 
         // Validar ID
         if (!id || isNaN(parseInt(id, 10))) {
-            return res.status(400).json({ message: "ID de producto inválido." });
+            return next(new Error("ID de producto inválido."));
         }
 
         // Validar cantidadCambio
         if (cantidadCambio === undefined || cantidadCambio === null || isNaN(cantidadCambio)) {
-            return res.status(400).json({ 
-                message: "El campo 'cantidadCambio' es requerido y debe ser un número." 
-            });
+            return next(new Error("El campo 'cantidadCambio' es requerido y debe ser un número."));
         }
 
-        const result = await productService.updateStock(parseInt(id, 10), cantidadCambio);
-        return res.status(result.status).json(result.data ?? { message: result.message });
+        const data = await productService.updateStock(parseInt(id, 10), cantidadCambio);
+        
+        const response: ApiResponse = {
+            success: true,
+            data,
+            message: 'Stock actualizado correctamente',
+            timestamp: new Date().toISOString()
+        };
+        
+        res.status(200).json(response);
     } catch (error: any) {
-        console.error("Error al actualizar stock:", error.message);
-        return res.status(500).json({ message: "Error interno al actualizar el stock." });
+        next(error);
     }
 };

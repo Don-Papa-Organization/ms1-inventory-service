@@ -1,70 +1,106 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { categoriaProductoService } from "../services/categoriaProductoService";
+import { ApiResponse } from "../types";
 
-export const getCategorias = async (req: Request, res: Response): Promise<any> => {
+export const getCategorias = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const resp = await categoriaProductoService.getAll();
-        return res.status(resp.status).json(resp.data ?? { message: resp.message });
+        const data = await categoriaProductoService.getAll();
+        
+        const response: ApiResponse = {
+            success: true,
+            data,
+            message: 'Categorías obtenidas exitosamente',
+            timestamp: new Date().toISOString()
+        };
+        
+        res.status(200).json(response);
     } catch (error: any) {
-        console.error("Error al obtener categorías:", error.message);
-        return res.status(500).json({ message: "Error interno al obtener categorías." });
+        next(error);
     }
 };
 
-export const getCategoriaById = async (req: Request, res: Response): Promise<any> => {
+export const getCategoriaById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { id } = req.params;
 
         if (!id || isNaN(parseInt(id, 10))) {
-            return res.status(400).json({ message: "id inválido o no proporcionado." });
+            return next(new Error("ID de categoría inválido o no proporcionado."));
         }
 
-        const resp = await categoriaProductoService.getById(parseInt(id, 10));
-        return res.status(resp.status).json(resp.data ?? { message: resp.message });
+        const data = await categoriaProductoService.getById(parseInt(id, 10));
+        
+        const response: ApiResponse = {
+            success: true,
+            data,
+            message: 'Categoría obtenida exitosamente',
+            timestamp: new Date().toISOString()
+        };
+        
+        res.status(200).json(response);
     } catch (error: any) {
-        console.error("Error al obtener categoría:", error.message);
-        return res.status(500).json({ message: "Error interno al obtener la categoría." });
+        next(error);
     }
 };
 
-export const createCategoria = async (req: Request, res: Response): Promise<any> => {
+export const createCategoria = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const resp = await categoriaProductoService.create(req.body);
-        return res.status(resp.status).json(resp.data ?? { message: resp.message });
+        const data = await categoriaProductoService.create(req.body);
+        
+        const response: ApiResponse = {
+            success: true,
+            data,
+            message: 'Categoría creada exitosamente',
+            timestamp: new Date().toISOString()
+        };
+        
+        res.status(201).json(response);
     } catch (error: any) {
-        console.error("Error al crear categoría:", error.message);
-        return res.status(500).json({ message: "Error interno al crear la categoría." });
+        next(error);
     }
 };
 
-export const updateCategoria = async (req: Request, res: Response): Promise<any> => {
-    try {
-        const { id } = req.params;
-
-        if (!id || isNaN(parseInt(id, 10))) {
-            return res.status(400).json({ message: "id inválido o no proporcionado." });
-        }
-
-        const resp = await categoriaProductoService.update(parseInt(id, 10), req.body);
-        return res.status(resp.status).json(resp.data ?? { message: resp.message });
-    } catch (error: any) {
-        console.error("Error al actualizar categoría:", error.message);
-        return res.status(500).json({ message: "Error interno al actualizar la categoría." });
-    }
-};
-
-export const deleteCategoria = async (req: Request, res: Response): Promise<any> => {
+export const updateCategoria = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { id } = req.params;
 
         if (!id || isNaN(parseInt(id, 10))) {
-            return res.status(400).json({ message: "id inválido o no proporcionado." });
+            return next(new Error("ID de categoría inválido o no proporcionado."));
         }
 
-        const resp = await categoriaProductoService.delete(parseInt(id, 10));
-        return res.status(resp.status).json(resp.data ?? { message: resp.message });
+        const data = await categoriaProductoService.update(parseInt(id, 10), req.body);
+        
+        const response: ApiResponse = {
+            success: true,
+            data,
+            message: 'Categoría actualizada exitosamente',
+            timestamp: new Date().toISOString()
+        };
+        
+        res.status(200).json(response);
     } catch (error: any) {
-        console.error("Error al eliminar categoría:", error.message);
-        return res.status(500).json({ message: "Error interno al eliminar la categoría." });
+        next(error);
+    }
+};
+
+export const deleteCategoria = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { id } = req.params;
+
+        if (!id || isNaN(parseInt(id, 10))) {
+            return next(new Error("ID de categoría inválido o no proporcionado."));
+        }
+
+        await categoriaProductoService.delete(parseInt(id, 10));
+        
+        const response: ApiResponse = {
+            success: true,
+            data: null,
+            message: 'Categoría eliminada correctamente',
+            timestamp: new Date().toISOString()
+        };
+        
+        res.status(200).json(response);
+    } catch (error: any) {
+        next(error);
     }
 };

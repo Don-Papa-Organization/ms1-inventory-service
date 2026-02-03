@@ -2,6 +2,7 @@ import express, { Express, Request, Response, NextFunction } from "express";
 import productRoutes from "./routes/productRoutes";
 import catalogoRoutes from "./routes/catalogoRoutes";
 import categoriaRoutes from "./routes/categoriaProductoRoutes";
+import { errorMiddleware } from "./middlewares/error.middleware";
 
 const app: Express = express();
 
@@ -28,4 +29,8 @@ app.use("/api/products", productRoutes);
 
 // Rutas protegidas de categorías de productos (requieren autenticación)
 app.use("/api/categoria", categoriaRoutes)
+
+// Middleware de manejo de errores centralizado - DEBE SER EL ÚLTIMO
+app.use(errorMiddleware);
+
 export default app;
