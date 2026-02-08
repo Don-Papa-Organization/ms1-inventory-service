@@ -1,4 +1,5 @@
 import express, { Express, Request, Response, NextFunction } from "express";
+import path from "path";
 import productRoutes from "./routes/productRoutes";
 import catalogoRoutes from "./routes/catalogoRoutes";
 import categoriaRoutes from "./routes/categoriaProductoRoutes";
@@ -8,6 +9,9 @@ const app: Express = express();
 
 // Aumentar límite de body para JSON
 app.use(express.json({ limit: '50mb' }));
+
+// Servir imágenes estáticas
+app.use("/images", express.static(path.join(__dirname, "images")));
 
 // Middleware global para loggear todas las peticiones
 app.use((req: Request, res: Response, next: NextFunction) => {

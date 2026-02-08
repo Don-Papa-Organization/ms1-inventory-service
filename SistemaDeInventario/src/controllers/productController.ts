@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { productService } from "../services/productService";
+import { AppError } from "../middlewares/error.middleware";
 import { ApiResponse } from "../types";
 
 /**
@@ -335,6 +336,37 @@ export const updateStock = async (req: Request, res: Response, next: NextFunctio
             timestamp: new Date().toISOString()
         };
         
+        res.status(200).json(response);
+    } catch (error: any) {
+        next(error);
+    }
+};
+
+/**
+ * Subir imagen para un producto específico
+ * Flujo separado del proceso de creación
+ */
+export const uploadProductoImagen = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { id } = req.params;
+
+        if (!id || isNaN(parseInt(id, 10))) {
+            return next(new AppError("ID de producto inválido.", 400));
+        }
+
+        if (!req.file) {
+            return next(new AppError("No se recibió ninguna imagen.", 400));
+        }
+
+        const data = await productService.updateImage(parseInt(id, 10), req.file.filename);
+
+        const response: ApiResponse = {
+            success: true,
+            data,
+            message: "Imagen de producto actualizada correctamente",
+            timestamp: new Date().toISOString()
+        };
+
         res.status(200).json(response);
     } catch (error: any) {
         next(error);

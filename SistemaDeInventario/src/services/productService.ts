@@ -5,6 +5,14 @@ import { ProductoResponseDto } from "../domain/dtos/response/Producto.Response.d
 import { CreateProductoRequestDto } from "../domain/dtos/request/CreateProducto.Request.dto";
 import { UpdateProductoRequestDto } from "../domain/dtos/request/UpdateProducto.Request.dto";
 import { AppError } from "../middlewares/error.middleware";
+import {
+    DEFAULT_PRODUCT_IMAGE_URL,
+    buildImageUrl,
+    deleteImageByFilename,
+    deleteImageIfNotDefault,
+    imageFileExistsByUrl,
+    isDefaultImageUrl
+} from "../utils/imageStorage";
 
 class ProductService {
     constructor(private readonly productRepository = new ProductoRepository()) { }
@@ -65,7 +73,11 @@ class ProductService {
 
     async create(payload: CreateProductoRequestDto): Promise<ProductoResponseDto> {
         this.validatePayload(payload);
-        const nuevoProducto = await this.productRepository.create(payload as any);
+        const payloadWithDefault = {
+            ...payload,
+            urlImagen: payload.urlImagen || DEFAULT_PRODUCT_IMAGE_URL
+        };
+        const nuevoProducto = await this.productRepository.create(payloadWithDefault as any);
         return this.toDto(nuevoProducto);
     }
 
@@ -73,6 +85,19 @@ class ProductService {
         const existente = await this.productRepository.findById(id);
         if (!existente) {
             throw new AppError("Producto no encontrado.", 404);
+        }
+
+        if (payload.urlImagen !== undefined) {
+            const urlImagen = (payload.urlImagen || "").trim();
+
+            if (!urlImagen) {
+                payload.urlImagen = existente.urlImagen;
+            } else {
+                const existe = await imageFileExistsByUrl(urlImagen);
+                if (!existe) {
+                    payload.urlImagen = existente.urlImagen;
+                }
+            }
         }
 
         if (Object.keys(payload).length === 0) {
@@ -93,6 +118,7 @@ class ProductService {
             throw new AppError("Producto no encontrado.", 404);
         }
         await this.productRepository.delete(id);
+        await deleteImageIfNotDefault(existente.urlImagen);
     }
 
     async getByCategoria(idCategoria: number): Promise<{ productos: ProductoResponseDto[]; total: number }> {
@@ -365,6 +391,36 @@ class ProductService {
 
         if (!actualizado) {
             throw new AppError("Error al actualizar el stock.", 500);
+        }
+
+        return this.toDto(actualizado);
+    }
+
+    /**
+     * Actualizar imagen de un producto existente
+     * @param id ID del producto
+     * @param filename Nombre de archivo guardado
+     */
+    async updateImage(id: number, filename: string): Promise<ProductoResponseDto> {
+        const existente = await this.productRepository.findById(id);
+        if (!existente) {
+            await deleteImageByFilename(filename);
+            throw new AppError("Producto no encontrado.", 404);
+        }
+
+        const nuevaUrl = buildImageUrl(filename);
+
+        const actualizado = await this.productRepository.update(id, {
+            urlImagen: nuevaUrl
+        } as any);
+
+        if (!actualizado) {
+            await deleteImageByFilename(filename);
+            throw new AppError("Error al actualizar la imagen del producto.", 500);
+        }
+
+        if (!isDefaultImageUrl(existente.urlImagen) && existente.urlImagen !== nuevaUrl) {
+            await deleteImageIfNotDefault(existente.urlImagen);
         }
 
         return this.toDto(actualizado);
