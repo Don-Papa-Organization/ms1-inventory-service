@@ -1,7 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 import { productService } from "../services/productService";
+import { categoriaProductoService } from "../services/categoriaProductoService";
 import { AppError } from "../middlewares/error.middleware";
 import { ApiResponse } from "../types";
+import path from "path";
+import { DEFAULT_PRODUCT_IMAGE_URL, IMAGE_PUBLIC_BASE, IMAGES_DIR } from "../utils/imageStorage";
 
 /**
  * Obtener catálogo de productos para empleados con filtros
@@ -163,6 +166,41 @@ export const updateProducto = async (req: Request, res: Response, next: NextFunc
             timestamp: new Date().toISOString()
         };
         
+        res.status(200).json(response);
+    } catch (error: any) {
+        next(error);
+    }
+};
+
+/**
+ * Asociar un producto con una categoría por ID
+ */
+export const asociarProductoCategoria = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { id, idCategoria } = req.params;
+
+        if (!id || isNaN(parseInt(id, 10))) {
+            return next(new AppError("ID de producto inválido.", 400));
+        }
+
+        if (!idCategoria || isNaN(parseInt(idCategoria, 10))) {
+            return next(new AppError("ID de categoría inválido.", 400));
+        }
+
+        const idProductoNum = parseInt(id, 10);
+        const idCategoriaNum = parseInt(idCategoria, 10);
+
+        await categoriaProductoService.getById(idCategoriaNum);
+
+        const data = await productService.update(idProductoNum, { idCategoria: idCategoriaNum });
+
+        const response: ApiResponse = {
+            success: true,
+            data,
+            message: "Producto asociado a categoría correctamente",
+            timestamp: new Date().toISOString()
+        };
+
         res.status(200).json(response);
     } catch (error: any) {
         next(error);
@@ -368,6 +406,41 @@ export const uploadProductoImagen = async (req: Request, res: Response, next: Ne
         };
 
         res.status(200).json(response);
+    } catch (error: any) {
+        next(error);
+    }
+};
+
+/**
+ * Obtener imagen pública de un producto
+ * Devuelve el archivo si es imagen local o redirecciona si es URL externa
+ */
+export const getProductoImagenPublica = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { id } = req.params;
+
+        if (!id || isNaN(parseInt(id, 10))) {
+            return next(new AppError("ID de producto inválido.", 400));
+        }
+
+        const producto = await productService.getById(parseInt(id, 10));
+        const urlImagen = (producto.urlImagen || DEFAULT_PRODUCT_IMAGE_URL).trim();
+
+        if (urlImagen.startsWith("http://") || urlImagen.startsWith("https://")) {
+            res.redirect(urlImagen);
+            return;
+        }
+
+        if (urlImagen.startsWith(IMAGE_PUBLIC_BASE)) {
+            const filename = path.basename(urlImagen);
+            const filePath = path.join(IMAGES_DIR, filename);
+            res.sendFile(filePath);
+            return;
+        }
+
+        const host = req.get("host");
+        const baseUrl = host ? `${req.protocol}://${host}` : "";
+        res.redirect(`${baseUrl}${urlImagen}`);
     } catch (error: any) {
         next(error);
     }

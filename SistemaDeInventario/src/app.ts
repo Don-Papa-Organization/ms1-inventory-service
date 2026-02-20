@@ -4,6 +4,7 @@ import productRoutes from "./routes/productRoutes";
 import catalogoRoutes from "./routes/catalogoRoutes";
 import categoriaRoutes from "./routes/categoriaProductoRoutes";
 import { errorMiddleware } from "./middlewares/error.middleware";
+import { getProductoImagenPublica } from "./controllers/productController";
 
 const app: Express = express();
 

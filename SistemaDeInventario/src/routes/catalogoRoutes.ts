@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getCatalogoPublico, getDetalleProductoPublico } from "../controllers/productController";
+import { getCatalogoPublico, getDetalleProductoPublico, getProductoImagenPublica } from "../controllers/productController";
 
 /**
  * Rutas públicas del catálogo de productos
@@ -42,5 +42,8 @@ router.get("/", getCatalogoPublico);
  * Ejemplo: /api/catalogo/5
  */
 router.get("/:id", getDetalleProductoPublico);
+
+
+router.get("/:id/imagen", getProductoImagenPublica);
 
 export default router;
