@@ -1,6 +1,7 @@
 import express, { Express, Request, Response, NextFunction } from "express";
 import path from "path";
 import productRoutes from "./routes/productRoutes";
+import internalRoutes from "./routes/internalRoutes";
 import catalogoRoutes from "./routes/catalogoRoutes";
 import categoriaRoutes from "./routes/categoriaProductoRoutes";
 import { errorMiddleware } from "./middlewares/error.middleware";
@@ -28,6 +29,9 @@ app.get('/health', (req, res) => {
 
 // Rutas públicas del catálogo (sin autenticación)
 app.use("/api/catalogo", catalogoRoutes);
+
+// Rutas internas entre microservicios (requieren token interno)
+app.use("/api/internal", internalRoutes);
 
 // Rutas protegidas de productos (requieren autenticación)
 app.use("/api/products", productRoutes);

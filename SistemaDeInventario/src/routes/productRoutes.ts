@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getProductos, getProductoById, createProducto, updateProducto, deleteProducto, updateStock, uploadProductoImagen, asociarProductoCategoria } from "../controllers/productController"
 import { authenticateToken, requireUsuarioActivo, requireRoles } from "../middlewares/authMiddleware";
+import { requireInternalToken } from "../middlewares/internalAuthMiddleware";
 import { TipoUsuario } from "../types/express";
 import { productImageUpload } from "../middlewares/productImageUpload";
 
