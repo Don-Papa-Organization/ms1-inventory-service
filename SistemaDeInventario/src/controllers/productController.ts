@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { productService } from "../services/productService";
 import { categoriaProductoService } from "../services/categoriaProductoService";
 import { AppError } from "../middlewares/error.middleware";
+import { promotionService } from "../services/apis/promotionService";
 import { ApiResponse } from "../types";
 import path from "path";
 import { DEFAULT_PRODUCT_IMAGE_URL, IMAGE_PUBLIC_BASE, IMAGES_DIR } from "../utils/imageStorage";
@@ -86,14 +87,30 @@ export const getProductos = async (req: Request, res: Response, next: NextFuncti
         }
 
         const data = await productService.getCatalogoEmpleado(filters);
-        
+
+        // Enriquecer producto con promociones si existen
+        const authHeader = req.headers.authorization;
+        const accessToken = authHeader ? authHeader.split(' ')[1] : undefined;
+        const activePromos = await promotionService.getActiveProductosPromocion(accessToken);
+        const promoMap = new Map(activePromos.map((p: any) => [p.productId, p]));
+
+        const enrichedProductos = data.productos.map((prod: any) => {
+            const promo = promoMap.get(prod.idProducto);
+            if (promo) {
+                return { ...prod, promotion: promo };
+            }
+            return prod;
+        });
+
+        const enrichedData = { ...data, productos: enrichedProductos };
+
         const response: ApiResponse = {
             success: true,
-            data,
+            data: enrichedData,
             message: 'Catálogo de productos obtenido exitosamente',
             timestamp: new Date().toISOString()
         };
-        
+
         res.status(200).json(response);
     } catch (error: any) {
         next(error);
@@ -112,14 +129,14 @@ export const getProductoById = async (req: Request, res: Response, next: NextFun
         }
 
         const data = await productService.getById(parseInt(id, 10));
-        
+
         const response: ApiResponse = {
             success: true,
             data,
             message: 'Producto obtenido exitosamente',
             timestamp: new Date().toISOString()
         };
-        
+
         res.status(200).json(response);
     } catch (error: any) {
         next(error);
@@ -132,14 +149,14 @@ export const getProductoById = async (req: Request, res: Response, next: NextFun
 export const createProducto = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const data = await productService.create(req.body);
-        
+
         const response: ApiResponse = {
             success: true,
             data,
             message: 'Producto creado exitosamente',
             timestamp: new Date().toISOString()
         };
-        
+
         res.status(201).json(response);
     } catch (error: any) {
         next(error);
@@ -158,14 +175,14 @@ export const updateProducto = async (req: Request, res: Response, next: NextFunc
         }
 
         const data = await productService.update(parseInt(id, 10), req.body);
-        
+
         const response: ApiResponse = {
             success: true,
             data,
             message: 'Producto actualizado exitosamente',
             timestamp: new Date().toISOString()
         };
-        
+
         res.status(200).json(response);
     } catch (error: any) {
         next(error);
@@ -219,14 +236,14 @@ export const deleteProducto = async (req: Request, res: Response, next: NextFunc
         }
 
         await productService.delete(parseInt(id, 10));
-        
+
         const response: ApiResponse = {
             success: true,
             data: null,
             message: 'Producto eliminado correctamente',
             timestamp: new Date().toISOString()
         };
-        
+
         res.status(200).json(response);
     } catch (error: any) {
         next(error);
@@ -303,14 +320,28 @@ export const getCatalogoPublico = async (req: Request, res: Response, next: Next
         }
 
         const data = await productService.getCatalogo(filters);
-        
+
+        // Enriquecer producto público con promociones si existen
+        const activePromos = await promotionService.getActiveProductosPromocion();
+        const promoMap = new Map(activePromos.map((p: any) => [p.productId, p]));
+
+        const enrichedProductos = data.productos.map((prod: any) => {
+            const promo = promoMap.get(prod.idProducto);
+            if (promo) {
+                return { ...prod, promotion: promo };
+            }
+            return prod;
+        });
+
+        const enrichedData = { ...data, productos: enrichedProductos };
+
         const response: ApiResponse = {
             success: true,
-            data,
+            data: enrichedData,
             message: data.productos.length > 0 ? 'Catálogo obtenido exitosamente' : 'No hay productos disponibles actualmente',
             timestamp: new Date().toISOString()
         };
-        
+
         res.status(200).json(response);
     } catch (error: any) {
         next(error);
@@ -332,14 +363,14 @@ export const getDetalleProductoPublico = async (req: Request, res: Response, nex
         }
 
         const data = await productService.getDetallePublico(parseInt(id, 10));
-        
+
         const response: ApiResponse = {
             success: true,
             data,
             message: 'Detalles del producto obtenidos exitosamente',
             timestamp: new Date().toISOString()
         };
-        
+
         res.status(200).json(response);
     } catch (error: any) {
         next(error);
@@ -366,14 +397,14 @@ export const updateStock = async (req: Request, res: Response, next: NextFunctio
         }
 
         const data = await productService.updateStock(parseInt(id, 10), cantidadCambio);
-        
+
         const response: ApiResponse = {
             success: true,
             data,
             message: 'Stock actualizado correctamente',
             timestamp: new Date().toISOString()
         };
-        
+
         res.status(200).json(response);
     } catch (error: any) {
         next(error);
