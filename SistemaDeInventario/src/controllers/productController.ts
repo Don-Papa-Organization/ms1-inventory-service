@@ -476,3 +476,112 @@ export const getProductoImagenPublica = async (req: Request, res: Response, next
         next(error);
     }
 };
+
+/**
+ * Buscar productos por nombre con paginacion.
+ */
+export const searchProductosByNombre = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { nombre, page, limit } = req.query;
+
+        if (!nombre || String(nombre).trim().length === 0) {
+            return next(new AppError("El parametro 'nombre' es obligatorio.", 400));
+        }
+
+        const pageNum = page ? parseInt(page as string, 10) : undefined;
+        const limitNum = limit ? parseInt(limit as string, 10) : undefined;
+
+        const data = await productService.searchByNombre(String(nombre).trim(), pageNum, limitNum);
+
+        const response: ApiResponse = {
+            success: true,
+            data,
+            message: 'Búsqueda de productos completada',
+            timestamp: new Date().toISOString()
+        };
+
+        res.status(200).json(response);
+    } catch (error: any) {
+        next(error);
+    }
+};
+
+/**
+ * Obtener productos por categoria con paginacion.
+ */
+export const getProductosByCategoria = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { idCategoria } = req.params;
+        const { page, limit } = req.query;
+
+        if (!idCategoria || isNaN(parseInt(idCategoria, 10))) {
+            return next(new AppError("ID de categoría inválido.", 400));
+        }
+
+        const pageNum = page ? parseInt(page as string, 10) : undefined;
+        const limitNum = limit ? parseInt(limit as string, 10) : undefined;
+
+        const data = await productService.getByCategoriaPaginado(parseInt(idCategoria, 10), pageNum, limitNum);
+
+        const response: ApiResponse = {
+            success: true,
+            data,
+            message: 'Productos por categoría obtenidos exitosamente',
+            timestamp: new Date().toISOString()
+        };
+
+        res.status(200).json(response);
+    } catch (error: any) {
+        next(error);
+    }
+};
+
+/**
+ * Obtener productos enriquecidos con información de categoría en una sola consulta.
+ */
+export const getProductosEnriquecidos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { nombre, categoria, activo, page, limit } = req.query;
+
+        const filters: {
+            nombre?: string;
+            categoria?: number;
+            activo?: boolean;
+            page?: number;
+            limit?: number;
+        } = {};
+
+        if (nombre && String(nombre).trim().length > 0) {
+            filters.nombre = String(nombre).trim();
+        }
+
+        if (categoria && !isNaN(parseInt(categoria as string, 10))) {
+            filters.categoria = parseInt(categoria as string, 10);
+        }
+
+        if (activo !== undefined) {
+            filters.activo = activo === 'true' || activo === '1';
+        }
+
+        if (page && !isNaN(parseInt(page as string, 10))) {
+            filters.page = parseInt(page as string, 10);
+        }
+
+        if (limit && !isNaN(parseInt(limit as string, 10))) {
+            filters.limit = parseInt(limit as string, 10);
+        }
+
+        const data = await productService.getProductosEnriquecidos(filters);
+
+        const response: ApiResponse = {
+            success: true,
+            data,
+            message: 'Productos enriquecidos obtenidos exitosamente',
+            timestamp: new Date().toISOString()
+        };
+
+        res.status(200).json(response);
+    } catch (error: any) {
+        next(error);
+    }
+};

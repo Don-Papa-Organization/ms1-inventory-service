@@ -1,5 +1,17 @@
 import { Router } from "express";
-import { getProductos, getProductoById, createProducto, updateProducto, deleteProducto, updateStock, uploadProductoImagen, asociarProductoCategoria } from "../controllers/productController"
+import {
+	getProductos,
+	getProductoById,
+	createProducto,
+	updateProducto,
+	deleteProducto,
+	updateStock,
+	uploadProductoImagen,
+	asociarProductoCategoria,
+	searchProductosByNombre,
+	getProductosByCategoria,
+	getProductosEnriquecidos
+} from "../controllers/productController"
 import { authenticateToken, requireUsuarioActivo, requireRoles } from "../middlewares/authMiddleware";
 import { requireInternalToken } from "../middlewares/internalAuthMiddleware";
 import { TipoUsuario } from "../types/express";
@@ -10,6 +22,9 @@ const router = Router();
 router.use(authenticateToken, requireUsuarioActivo);
 
 router.get("/", requireRoles(TipoUsuario.empleado, TipoUsuario.administrador), getProductos);
+router.get("/search", requireRoles(TipoUsuario.empleado, TipoUsuario.administrador), searchProductosByNombre);
+router.get("/categoria/:idCategoria", requireRoles(TipoUsuario.empleado, TipoUsuario.administrador), getProductosByCategoria);
+router.get("/enriched", requireRoles(TipoUsuario.empleado, TipoUsuario.administrador), getProductosEnriquecidos);
 router.get("/:id", requireRoles(TipoUsuario.empleado, TipoUsuario.administrador), getProductoById);
 router.post("/", requireRoles(TipoUsuario.administrador), createProducto);
 

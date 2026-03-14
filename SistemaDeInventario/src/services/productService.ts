@@ -17,6 +17,27 @@ import {
 class ProductService {
     constructor(private readonly productRepository = new ProductoRepository()) { }
 
+    private normalizePagination(page?: number, limit?: number): { page: number; limit: number } {
+        const safePage = page && page > 0 ? page : 1;
+        const safeLimit = limit && limit > 0 ? limit : 20;
+        return { page: safePage, limit: safeLimit };
+    }
+
+    private paginate<T>(items: T[], page?: number, limit?: number): { data: T[]; page: number; totalPages: number; total: number } {
+        const normalized = this.normalizePagination(page, limit);
+        const total = items.length;
+        const totalPages = Math.ceil(total / normalized.limit);
+        const start = (normalized.page - 1) * normalized.limit;
+        const end = start + normalized.limit;
+
+        return {
+            data: items.slice(start, end),
+            page: normalized.page,
+            totalPages,
+            total,
+        };
+    }
+
     private toDto(producto: ProductoDto): ProductoResponseDto {
         return {
             idProducto: producto.idProducto!,
@@ -126,6 +147,77 @@ class ProductService {
         return {
             productos: productos.map(p => this.toDto(p)),
             total: productos.length,
+        };
+    }
+
+    async searchByNombre(nombre: string, page?: number, limit?: number): Promise<{ productos: ProductoResponseDto[]; total: number; pagina: number; totalPaginas: number }> {
+        const productos = await this.productRepository.findByNombre(nombre);
+        const paginated = this.paginate(productos, page, limit);
+
+        return {
+            productos: paginated.data.map(p => this.toDto(p as any)),
+            total: paginated.total,
+            pagina: paginated.page,
+            totalPaginas: paginated.totalPages,
+        };
+    }
+
+    async getByCategoriaPaginado(idCategoria: number, page?: number, limit?: number): Promise<{ productos: ProductoResponseDto[]; total: number; pagina: number; totalPaginas: number }> {
+        const productos = await this.productRepository.findByCategoria(idCategoria);
+        const paginated = this.paginate(productos, page, limit);
+
+        return {
+            productos: paginated.data.map(p => this.toDto(p as any)),
+            total: paginated.total,
+            pagina: paginated.page,
+            totalPaginas: paginated.totalPages,
+        };
+    }
+
+    async getProductosEnriquecidos(filters: {
+        nombre?: string;
+        categoria?: number;
+        activo?: boolean;
+        page?: number;
+        limit?: number;
+    }): Promise<{
+        productos: Array<ProductoResponseDto & {
+            categoria: { idCategoria: number; nombre: string } | null;
+            nombreCategoria: string | null;
+        }>;
+        total: number;
+        pagina: number;
+        totalPaginas: number;
+    }> {
+        const productos = await this.productRepository.findAllWithCategoria({
+            nombre: filters.nombre,
+            categoria: filters.categoria,
+            activo: filters.activo,
+        });
+
+        const paginated = this.paginate(productos, filters.page, filters.limit);
+
+        const productosEnriquecidos = paginated.data.map((producto: any) => {
+            const dto = this.toDto(producto);
+            const categoria = producto.categoriaProducto
+                ? {
+                    idCategoria: producto.categoriaProducto.idCategoria,
+                    nombre: producto.categoriaProducto.nombre,
+                }
+                : null;
+
+            return {
+                ...dto,
+                categoria,
+                nombreCategoria: categoria?.nombre ?? null,
+            };
+        });
+
+        return {
+            productos: productosEnriquecidos,
+            total: paginated.total,
+            pagina: paginated.page,
+            totalPaginas: paginated.totalPages,
         };
     }
 
