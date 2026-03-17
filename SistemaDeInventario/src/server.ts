@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import app from "./app";
+import { runInventorySeed } from "./config/seedData";
 
 
 const PORT = process.env.PORT || 4001;
@@ -15,6 +16,9 @@ async function startServer() {
       await sequelize.sync({ alter: true });
       console.log("✅ Models synchronized with database");
     }
+
+    await runInventorySeed();
+    console.log("✅ Inventory seed verification completed");
   } catch (err) {
     console.error("❌ Error initializing database:", err);
   }
