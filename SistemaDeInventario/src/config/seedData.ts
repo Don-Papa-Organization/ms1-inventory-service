@@ -1,4 +1,5 @@
 import { CategoriaProducto, Producto } from "../domain/models";
+import { assignImagesToSeedProducts } from "../services/imageAssignerService";
 
 const CATEGORIAS_SEED = [
   "DULCERIA",
@@ -461,4 +462,14 @@ export async function runInventorySeed(): Promise<void> {
     `[SEED] Categorias creadas: ${categoriasCreadas}, existentes: ${categoriasExistentes}. ` +
       `Productos creados: ${productosCreados}, existentes: ${productosExistentes}.`
   );
+
+  // Iniciar búsqueda de imágenes en background sin esperar
+  if (productosCreados > 0) {
+    console.log(
+      "[SEED] Iniciando búsqueda de imágenes para nuevos productos (background)..."
+    );
+    assignImagesToSeedProducts().catch((error) =>
+      console.error("[SEED] Error en asignación de imágenes:", error)
+    );
+  }
 }

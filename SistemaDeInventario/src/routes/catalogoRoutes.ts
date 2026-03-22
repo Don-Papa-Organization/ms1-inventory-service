@@ -1,5 +1,10 @@
 import { Router } from "express";
-import { getCatalogoPublico, getDetalleProductoPublico, getProductoImagenPublica } from "../controllers/productController";
+import {
+	getCatalogoPublico,
+	getCatalogoPublicoEnriquecido,
+	getDetalleProductoPublico,
+	getProductoImagenPublica
+} from "../controllers/productController";
 
 /**
  * Rutas públicas del catálogo de productos
@@ -27,6 +32,7 @@ const router = Router();
  * Ejemplo: /api/catalogo?categoria=1&precioMin=10&precioMax=100&page=1&limit=12&ordenarPor=precio&orden=asc
  */
 router.get("/", getCatalogoPublico);
+router.get("/enriquecido", getCatalogoPublicoEnriquecido);
 
 /**
  * GET /api/catalogo/:id

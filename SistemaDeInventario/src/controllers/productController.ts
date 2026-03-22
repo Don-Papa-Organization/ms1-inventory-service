@@ -3,9 +3,85 @@ import { productService } from "../services/productService";
 import { categoriaProductoService } from "../services/categoriaProductoService";
 import { AppError } from "../middlewares/error.middleware";
 import { promotionService } from "../services/apis/promotionService";
+import { assignImageToProduct, assignImagesToSeedProducts } from "../services/imageAssignerService";
 import { ApiResponse } from "../types";
 import path from "path";
 import { DEFAULT_PRODUCT_IMAGE_URL, IMAGE_PUBLIC_BASE, IMAGES_DIR } from "../utils/imageStorage";
+
+interface CatalogPromotionView {
+    idPromocion: number | null;
+    nombrePromocion: string | null;
+    precioOriginal: number;
+    precioPromocional: number | null;
+    porcentajeDescuento: number | null;
+    tienePromocion: boolean;
+}
+
+const parseNumber = (value: unknown): number | null => {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
+};
+
+const resolvePromotionProductId = (promotion: any): number | null => {
+    return (
+        parseNumber(promotion?.productId) ??
+        parseNumber(promotion?.idProducto) ??
+        parseNumber(promotion?.productoId) ??
+        parseNumber(promotion?.id_producto)
+    );
+};
+
+const buildPromotionView = (promotion: any, precioBase: number): CatalogPromotionView => {
+    if (!promotion) {
+        return {
+            idPromocion: null,
+            nombrePromocion: null,
+            precioOriginal: precioBase,
+            precioPromocional: null,
+            porcentajeDescuento: null,
+            tienePromocion: false,
+        };
+    }
+
+    const rawPromoPrice =
+        parseNumber(promotion?.precioPromocional) ??
+        parseNumber(promotion?.precio_promocional);
+
+    const rawDiscount =
+        parseNumber(promotion?.porcentajeDescuento) ??
+        parseNumber(promotion?.porcentaje_descuento);
+
+    let precioPromocional: number | null = null;
+    let porcentajeDescuento: number | null = null;
+
+    if (rawPromoPrice !== null && rawPromoPrice > 0 && rawPromoPrice < precioBase) {
+        precioPromocional = rawPromoPrice;
+        const calculatedDiscount = Math.round(((precioBase - rawPromoPrice) / precioBase) * 100);
+        porcentajeDescuento = rawDiscount !== null && rawDiscount > 0 ? rawDiscount : calculatedDiscount;
+    } else if (rawDiscount !== null && rawDiscount > 0) {
+        const calculatedPrice = Math.max(0, Math.round(precioBase - (precioBase * rawDiscount) / 100));
+        if (calculatedPrice < precioBase) {
+            precioPromocional = calculatedPrice;
+            porcentajeDescuento = rawDiscount;
+        }
+    }
+
+    return {
+        idPromocion:
+            parseNumber(promotion?.idPromocion) ??
+            parseNumber(promotion?.promotionId) ??
+            parseNumber(promotion?.id_promocion),
+        nombrePromocion:
+            promotion?.nombrePromocion ??
+            promotion?.promotionName ??
+            promotion?.nombre_promocion ??
+            null,
+        precioOriginal: precioBase,
+        precioPromocional,
+        porcentajeDescuento,
+        tienePromocion: precioPromocional !== null,
+    };
+};
 
 /**
  * Obtener catálogo de productos para empleados con filtros
@@ -149,6 +225,13 @@ export const getProductoById = async (req: Request, res: Response, next: NextFun
 export const createProducto = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const data = await productService.create(req.body);
+
+        // Iniciar búsqueda de imagen en background sin bloquear respuesta
+        if (data?.idProducto) {
+          assignImageToProduct(data.idProducto).catch((error) =>
+            console.error(`[ProductController] Error asignando imagen para producto ${data.idProducto}:`, error)
+          );
+        }
 
         const response: ApiResponse = {
             success: true,
@@ -577,6 +660,212 @@ export const getProductosEnriquecidos = async (req: Request, res: Response, next
             success: true,
             data,
             message: 'Productos enriquecidos obtenidos exitosamente',
+            timestamp: new Date().toISOString()
+        };
+
+        res.status(200).json(response);
+    } catch (error: any) {
+        next(error);
+    }
+};
+
+/**
+ * [ADMIN] Buscar y asignar imagen a un producto específico
+ * POST /api/products/admin/scrape-image/:id
+ * Dispara búsqueda web y descarga de imagen para un producto
+ */
+export const scrapeAndAssignImageToProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { id } = req.params;
+
+        if (!id || isNaN(parseInt(id, 10))) {
+            return next(new AppError("ID de producto inválido.", 400));
+        }
+
+        const idProducto = parseInt(id, 10);
+
+        // Validar que el producto existe
+        const producto = await productService.getById(idProducto);
+        if (!producto) {
+            return next(new AppError("Producto no encontrado.", 404));
+        }
+
+        // Disparar asignación en background pero responder inmediatamente
+        assignImageToProduct(idProducto).catch(error => {
+            console.error(`[IMAGE-SCRAPER] Error asignando imagen a producto ${idProducto}:`, error);
+        });
+
+        const response: ApiResponse = {
+            success: true,
+            data: {
+                idProducto,
+                mensaje: "Búsqueda de imagen iniciada en background"
+            },
+            message: "Proceso de scraping de imagen iniciado exitosamente",
+            timestamp: new Date().toISOString()
+        };
+
+        res.status(202).json(response); // 202 Accepted
+    } catch (error: any) {
+        next(error);
+    }
+};
+
+/**
+ * [ADMIN] Buscar y asignar imágenes a TODOS los productos sin imagen
+ * POST /api/products/admin/scrape-images-bulk
+ * Dispara búsqueda masiva de imágenes para productos que aún no las tienen
+ */
+export const scrapeAndAssignImagesBulk = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        // Disparar bulk assignment en background pero responder inmediatamente
+        assignImagesToSeedProducts().catch(error => {
+            console.error("[IMAGE-SCRAPER] Error en scraping masivo de imágenes:", error);
+        });
+
+        const response: ApiResponse = {
+            success: true,
+            data: {
+                mensaje: "Búsqueda masiva de imágenes iniciada en background",
+                procesamiento: "La asignación de imágenes se ejecutará en segundo plano"
+            },
+            message: "Proceso masivo de scraping de imágenes iniciado exitosamente",
+            timestamp: new Date().toISOString()
+        };
+
+        res.status(202).json(response); // 202 Accepted
+    } catch (error: any) {
+        next(error);
+    }
+};
+
+/**
+ * Obtener catálogo público enriquecido con precio promocional ya calculado.
+ * Objetivo: reducir latencia y evitar llamadas N+1 del cliente a promociones.
+ */
+export const getCatalogoPublicoEnriquecido = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const {
+            categoria,
+            precioMin,
+            precioMax,
+            esPromocion,
+            page,
+            limit,
+            ordenarPor,
+            orden
+        } = req.query;
+
+        const filters: any = {};
+
+        if (categoria) {
+            const categoriaNum = parseInt(categoria as string, 10);
+            if (!isNaN(categoriaNum)) {
+                filters.categoria = categoriaNum;
+            }
+        }
+
+        if (precioMin) {
+            const precioMinNum = parseFloat(precioMin as string);
+            if (!isNaN(precioMinNum) && precioMinNum >= 0) {
+                filters.precioMin = precioMinNum;
+            }
+        }
+
+        if (precioMax) {
+            const precioMaxNum = parseFloat(precioMax as string);
+            if (!isNaN(precioMaxNum) && precioMaxNum >= 0) {
+                filters.precioMax = precioMaxNum;
+            }
+        }
+
+        if (page) {
+            const pageNum = parseInt(page as string, 10);
+            if (!isNaN(pageNum) && pageNum > 0) {
+                filters.page = pageNum;
+            }
+        }
+
+        if (limit) {
+            const limitNum = parseInt(limit as string, 10);
+            if (!isNaN(limitNum) && limitNum > 0) {
+                filters.limit = limitNum;
+            }
+        }
+
+        if (ordenarPor && ['nombre', 'precio', 'reciente'].includes(ordenarPor as string)) {
+            filters.ordenarPor = ordenarPor as 'nombre' | 'precio' | 'reciente';
+        }
+
+        if (orden && ['asc', 'desc'].includes(orden as string)) {
+            filters.orden = orden as 'asc' | 'desc';
+        }
+
+        const data = await productService.getCatalogo(filters);
+
+        if (!data.productos.length) {
+            const response: ApiResponse = {
+                success: true,
+                data: {
+                    ...data,
+                    productos: []
+                },
+                message: 'No hay productos disponibles actualmente',
+                timestamp: new Date().toISOString()
+            };
+
+            res.status(200).json(response);
+            return;
+        }
+
+        const activePromos = await promotionService.getActiveProductosPromocion();
+        const promoMap = new Map<number, any>();
+
+        for (const promo of activePromos) {
+            const productId = resolvePromotionProductId(promo);
+            if (productId !== null && !promoMap.has(productId)) {
+                promoMap.set(productId, promo);
+            }
+        }
+
+        let productosEnriquecidos = data.productos.map((producto: any) => {
+            const promotion = promoMap.get(producto.idProducto) ?? null;
+            const promotionView = buildPromotionView(promotion, Number(producto.precio));
+
+            return {
+                ...producto,
+                promotion,
+                precioOriginal: promotionView.precioOriginal,
+                precioPromocional: promotionView.precioPromocional,
+                porcentajeDescuento: promotionView.porcentajeDescuento,
+                tienePromocion: promotionView.tienePromocion,
+                promotionSummary: {
+                    idPromocion: promotionView.idPromocion,
+                    nombrePromocion: promotionView.nombrePromocion,
+                    precioPromocional: promotionView.precioPromocional,
+                    porcentajeDescuento: promotionView.porcentajeDescuento,
+                    tienePromocion: promotionView.tienePromocion,
+                }
+            };
+        });
+
+        if (esPromocion !== undefined) {
+            const onlyPromotions = esPromocion === 'true' || esPromocion === '1';
+            productosEnriquecidos = productosEnriquecidos.filter((producto: any) => {
+                return onlyPromotions ? producto.tienePromocion : !producto.tienePromocion;
+            });
+        }
+
+        const response: ApiResponse = {
+            success: true,
+            data: {
+                ...data,
+                total: productosEnriquecidos.length,
+                productos: productosEnriquecidos,
+            },
+            message: productosEnriquecidos.length > 0
+                ? 'Catálogo enriquecido obtenido exitosamente'
+                : 'No hay productos disponibles con los filtros solicitados',
             timestamp: new Date().toISOString()
         };
 

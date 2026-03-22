@@ -7,8 +7,8 @@ const router = Router();
 
 router.use(authenticateToken, requireUsuarioActivo);
 
-router.get("/", requireRoles(TipoUsuario.empleado, TipoUsuario.administrador), getCategorias);
-router.get("/:id", requireRoles(TipoUsuario.empleado, TipoUsuario.administrador), getCategoriaById);
+router.get("/", requireRoles(TipoUsuario.cliente, TipoUsuario.empleado, TipoUsuario.administrador), getCategorias);
+router.get("/:id", requireRoles(TipoUsuario.cliente, TipoUsuario.empleado, TipoUsuario.administrador), getCategoriaById);
 router.post("/", requireRoles(TipoUsuario.administrador), createCategoria);
 router.put("/:id", requireRoles(TipoUsuario.administrador), updateCategoria);
 router.delete("/:id", requireRoles(TipoUsuario.administrador), deleteCategoria);

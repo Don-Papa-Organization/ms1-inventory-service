@@ -4,7 +4,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "ts-node ./src/server.ts",
-    "tsc": "tsc -watch"
+    "tsc": "tsc -watch",
+    "seed:images:1-50": "ts-node ./src/scripts/seedProductImagesByIdRange.ts --start=1 --end=50 --max-queries=50",
+    "seed:images:range": "ts-node ./src/scripts/seedProductImagesByIdRange.ts"
   },
   "keywords": [],
   "author": "",
