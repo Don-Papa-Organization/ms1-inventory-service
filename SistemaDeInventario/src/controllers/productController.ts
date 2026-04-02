@@ -3,7 +3,7 @@ import { productService } from "../services/productService";
 import { categoriaProductoService } from "../services/categoriaProductoService";
 import { AppError } from "../middlewares/error.middleware";
 import { promotionService } from "../services/apis/promotionService";
-import { assignImageToProduct, assignImagesToSeedProducts } from "../services/imageAssignerService";
+import { assignImageToProduct, assignImagesToSeedProducts, verifyAndAssignImagesToAllProducts } from "../services/imageAssignerService";
 import { ApiResponse } from "../types";
 import path from "path";
 import { DEFAULT_PRODUCT_IMAGE_URL, IMAGE_PUBLIC_BASE, IMAGES_DIR } from "../utils/imageStorage";
@@ -719,7 +719,7 @@ export const scrapeAndAssignImageToProduct = async (req: Request, res: Response,
 export const scrapeAndAssignImagesBulk = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         // Disparar bulk assignment en background pero responder inmediatamente
-        assignImagesToSeedProducts().catch(error => {
+        assignImagesToSeedProducts(50).catch(error => {
             console.error("[IMAGE-SCRAPER] Error en scraping masivo de imágenes:", error);
         });
 
@@ -730,6 +730,38 @@ export const scrapeAndAssignImagesBulk = async (req: Request, res: Response, nex
                 procesamiento: "La asignación de imágenes se ejecutará en segundo plano"
             },
             message: "Proceso masivo de scraping de imágenes iniciado exitosamente",
+            timestamp: new Date().toISOString()
+        };
+
+        res.status(202).json(response); // 202 Accepted
+    } catch (error: any) {
+        next(error);
+    }
+};
+
+/**
+ * [ADMIN] Verificar y asignar imágenes a TODOS los productos (max 300)
+ * POST /api/products/admin/scrape-images-all
+ * Verifica si cada producto tiene imagen válida, si no la tiene la scrappea
+ * Procesa todos los productos ordenados por ID ascendente
+ */
+export const scrapeAndAssignImagesToAllProducts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const limit = 300;
+        
+        // Disparar bulk assignment en background pero responder inmediatamente
+        verifyAndAssignImagesToAllProducts(limit).catch(error => {
+            console.error("[IMAGE-SCRAPER] Error en scraping de todos los productos:", error);
+        });
+
+        const response: ApiResponse = {
+            success: true,
+            data: {
+                mensaje: "Verificación y asignación de imágenes a todos los productos iniciada en background",
+                procesamiento: "Se procesarán todos los productos (máx 300) verificando si tienen imagen válida",
+                limite: limit
+            },
+            message: "Proceso de scraping para todos los productos iniciado exitosamente",
             timestamp: new Date().toISOString()
         };
 

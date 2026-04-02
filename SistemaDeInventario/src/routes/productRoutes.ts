@@ -12,7 +12,8 @@ import {
 	getProductosByCategoria,
 	getProductosEnriquecidos,
 	scrapeAndAssignImageToProduct,
-	scrapeAndAssignImagesBulk
+	scrapeAndAssignImagesBulk,
+	scrapeAndAssignImagesToAllProducts
 } from "../controllers/productController"
 import { authenticateToken, requireUsuarioActivo, requireRoles } from "../middlewares/authMiddleware";
 import { requireInternalToken } from "../middlewares/internalAuthMiddleware";
@@ -33,6 +34,7 @@ router.post("/", requireRoles(TipoUsuario.administrador), createProducto);
 // Admin endpoints para scraping de imágenes
 router.post("/admin/scrape-image/:id", requireRoles(TipoUsuario.administrador), scrapeAndAssignImageToProduct);
 router.post("/admin/scrape-images-bulk", requireRoles(TipoUsuario.administrador), scrapeAndAssignImagesBulk);
+router.post("/admin/scrape-images-all", requireRoles(TipoUsuario.administrador), scrapeAndAssignImagesToAllProducts);
 
 router.post("/:id/imagen", requireRoles(TipoUsuario.administrador), productImageUpload.single("imagen"), uploadProductoImagen);
 router.put("/:id/categoria/:idCategoria", requireRoles(TipoUsuario.administrador), asociarProductoCategoria);

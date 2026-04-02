@@ -3,7 +3,7 @@ import http from "http";
 import path from "path";
 import fs from "fs/promises";
 import crypto from "crypto";
-import { IMAGES_DIR, buildImageUrl } from "./imageStorage";
+import { IMAGES_DIR, buildImageUrl, ensureImagesDir } from "./imageStorage";
 
 interface ScraperResult {
   success: boolean;
@@ -323,7 +323,7 @@ export class ImageScraperService {
       const filePath = path.join(IMAGES_DIR, filename);
 
       // Asegurar que el directorio existe
-      await fs.mkdir(IMAGES_DIR, { recursive: true });
+      await ensureImagesDir();
 
       // Descargar imagen con reintentos
       const buffer = await this.downloadImageWithRetry(imageUrl, this.maxRetries);
